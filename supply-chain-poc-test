@@ -1,0 +1,155 @@
+databricks-logosupply-chain-poc-test(Scala) Import Notebook
+%scala
+import org.apache.spark.sql.types._
+
+val testDF = sqlContext.read.format("csv")
+  .option("mode", "DROPMALFORMED")
+  .option("header", "true")
+  .option("inferSchema", "true")
+  .load("/FileStore/tables/supply_chain_test-8a8e8.csv")
+
+//trainingDF.printSchema
+import org.apache.spark.sql.types._
+testDF: org.apache.spark.sql.DataFrame = [Date: string, POS: int ... 9 more fields]
+/// create the features
+import org.apache.spark.sql.functions.udf
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.ml.linalg.DenseVector
+import org.apache.spark.ml.linalg.Vectors
+import org.apache.spark.ml.linalg._
+import org.apache.spark.ml.classification.BinaryLogisticRegressionSummary
+import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
+import org.apache.spark.mllib.tree.RandomForest
+import org.apache.spark.mllib.tree.model.RandomForestModel
+import org.apache.spark.mllib.util.MLUtils
+import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.ml.{Pipeline, PipelineModel}
+
+def calcLabel: (Boolean => Double) = (shortage: Boolean) => {if (shortage) 1.0 else 0.0 }
+val label = udf(calcLabel)
+
+val transformedDF = testDF.withColumn("POS", $"POS".cast(DoubleType))
+.withColumn("Channel Inventory", $"Channel Inventory".cast(DoubleType))
+.withColumn("Channel Receipts", $"Channel Receipts".cast(DoubleType))
+.withColumn("Sales Orders", $"Sales Orders".cast(DoubleType))
+.withColumn("Shipments", $"Shipments".cast(DoubleType))
+.withColumn("Forecast", $"Forecast".cast(DoubleType))
+.withColumn("PO Placed", $"PO Placed".cast(DoubleType))
+.withColumn("PO Received", $"PO Received".cast(DoubleType))
+.withColumn("Ending Inventory", $"Ending Inventory".cast(DoubleType))
+.withColumn("Shortage", $"Shortage".cast(BooleanType))
+//transformedDF.show(2)
+
+val labeledData = transformedDF.withColumn("Class", label(transformedDF("Shortage")))
+labeledData.show(2)
++-------+-----+-----------------+----------------+------------+---------+--------+---------+-----------+----------------+--------+-----+
+|   Date|  POS|Channel Inventory|Channel Receipts|Sales Orders|Shipments|Forecast|PO Placed|PO Received|Ending Inventory|Shortage|Class|
++-------+-----+-----------------+----------------+------------+---------+--------+---------+-----------+----------------+--------+-----+
+|5/25/07|139.0|             41.0|           263.0|       590.0|    942.0|   463.0|    661.0|      839.0|           839.0|   false|  0.0|
+| 6/1/07| 56.0|            927.0|           942.0|       373.0|    839.0|   530.0|    743.0|      737.0|           737.0|   false|  0.0|
++-------+-----+-----------------+----------------+------------+---------+--------+---------+-----------+----------------+--------+-----+
+only showing top 2 rows
+
+import org.apache.spark.sql.functions.udf
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.ml.linalg.DenseVector
+import org.apache.spark.ml.linalg.Vectors
+import org.apache.spark.ml.linalg._
+import org.apache.spark.ml.classification.BinaryLogisticRegressionSummary
+import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
+import org.apache.spark.mllib.tree.RandomForest
+import org.apache.spark.mllib.tree.model.RandomForestModel
+import org.apache.spark.mllib.util.MLUtils
+import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.ml.{Pipeline, PipelineModel}
+calcLabel: Boolean => Double
+label: org.apache.spark.sql.expressions.UserDefinedFunction = UserDefinedFunction(<function1>,DoubleType,Some(List(BooleanType)))
+transformedDF: org.apache.spark.sql.DataFrame = [Date: string, POS: double ... 9 more fields]
+labeledData: org.apache.spark.sql.DataFrame = [Date: string, POS: double ... 10 more fields]
+labeledData.createOrReplaceTempView("labeledDataTable")
+val df1 = sql(s"""
+SELECT * from labeledDataTable where Class = NULL 
+  """)
+df1.show(2)
++----+---+-----------------+----------------+------------+---------+--------+---------+-----------+----------------+--------+-----+
+|Date|POS|Channel Inventory|Channel Receipts|Sales Orders|Shipments|Forecast|PO Placed|PO Received|Ending Inventory|Shortage|Class|
++----+---+-----------------+----------------+------------+---------+--------+---------+-----------+----------------+--------+-----+
++----+---+-----------------+----------------+------------+---------+--------+---------+-----------+----------------+--------+-----+
+
+df1: org.apache.spark.sql.DataFrame = [Date: string, POS: double ... 10 more fields]
+// create the features
+import org.apache.spark.sql.functions.udf
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.ml.linalg.DenseVector
+import org.apache.spark.ml.linalg.Vectors
+import org.apache.spark.ml.linalg._
+import org.apache.spark.ml.classification.BinaryLogisticRegressionSummary
+import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
+import org.apache.spark.mllib.tree.RandomForest
+import org.apache.spark.mllib.tree.model.RandomForestModel
+import org.apache.spark.mllib.util.MLUtils
+import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.ml.{Pipeline, PipelineModel}
+
+val assembler = new VectorAssembler()
+  .setInputCols(Array("POS","Channel Inventory","Channel Receipts", "Sales Orders","Shipments","Forecast","PO Placed","PO Received","Ending Inventory"))
+  .setOutputCol("features")
+val featureDF = assembler.transform(labeledData)
+featureDF.show(2)
+val labelIndexer = new StringIndexer().setInputCol("Class").setOutputCol("label").setHandleInvalid("skip")
+val finalTestDF = labelIndexer.fit(featureDF).transform(featureDF)
+
+val model = PipelineModel.load("/tmp/lr-model1")
+val predictions = model.transform(finalTestDF)
+
+print("predictions size: "+predictions.count())
+val evaluator = new BinaryClassificationEvaluator().setLabelCol("label").setRawPredictionCol("rawPrediction").setMetricName("areaUnderROC")
+val accuracy = evaluator.evaluate(predictions)
+print("accuracy: "+accuracy)
+
+evaluator.explainParams()
+
++-------+-----+-----------------+----------------+------------+---------+--------+---------+-----------+----------------+--------+-----+--------------------+
+|   Date|  POS|Channel Inventory|Channel Receipts|Sales Orders|Shipments|Forecast|PO Placed|PO Received|Ending Inventory|Shortage|Class|            features|
++-------+-----+-----------------+----------------+------------+---------+--------+---------+-----------+----------------+--------+-----+--------------------+
+|5/25/07|139.0|             41.0|           263.0|       590.0|    942.0|   463.0|    661.0|      839.0|           839.0|   false|  0.0|[139.0,41.0,263.0...|
+| 6/1/07| 56.0|            927.0|           942.0|       373.0|    839.0|   530.0|    743.0|      737.0|           737.0|   false|  0.0|[56.0,927.0,942.0...|
++-------+-----+-----------------+----------------+------------+---------+--------+---------+-----------+----------------+--------+-----+--------------------+
+only showing top 2 rows
+
+predictions size: 191accuracy: 0.8934056007226738import org.apache.spark.sql.functions.udf
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.ml.linalg.DenseVector
+import org.apache.spark.ml.linalg.Vectors
+import org.apache.spark.ml.linalg._
+import org.apache.spark.ml.classification.BinaryLogisticRegressionSummary
+import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
+import org.apache.spark.mllib.tree.RandomForest
+import org.apache.spark.mllib.tree.model.RandomForestModel
+import org.apache.spark.mllib.util.MLUtils
+import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.ml.{Pipeline, PipelineModel}
+assembler: org.apache.spark.ml.feature.VectorAssembler = vecAssembler_3550d0718904
+featureDF: org.apache.spark.sql.DataFrame = [Date: string, POS: double ... 11 more fields]
+labelIndexer: org.apache.spark.ml.feature.StringIndexer = strIdx_b4727289c07e
+testDF: org.apache.spark.sql.DataFrame = [Date: string, POS: double ... 12 more fields]
+model: org.apache.spark.ml.PipelineModel = pipeline_299745ce97c3
+predictions: org.apache.spark.sql.DataFrame = [Date: string, POS: double ... 15 more fields]
+evaluator: org.apache.spark.ml.evaluation.BinaryClassificationEvaluator = binEval_82e0126ddb2b
+accuracy: Double = 0.8934056007226738
+res6: String =
+labelCol: label column name (default: label, current: label)
+metricName: metric name in evaluation (areaUnderROC|areaUnderPR) (default: areaUnderROC, current: areaUnderROC)
+rawPredictionCol: raw prediction (a.k.a. confidence) column name (default: rawPrediction, current: rawPrediction)
