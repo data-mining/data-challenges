@@ -1,0 +1,41 @@
+Find the cleanest Genre.
+Data Set : https://blazer.dokkuapp.com/queries
+
+Step 1: Find Genre Count per Movie
+select movie_id, count(*) as genreCnt from  genres_movies group by movie_id
+
+movie_id                                    genrecnt
+426   Transformers: The Movie, The (1986)     6
+172   Empire Strikes Back, The (1980)         6
+560   Kid in King Arthur's Court, A (1995)    6
+855   Diva (1981)                             5
+--------------------------------------------------------
+
+Step 2: Construct a Tuple (Genre Id, Movie Id, Genre Count)
+
+SELECT gnrs.movie_id, gnrs.genre_id, mvs.genreCnt from genres_movies gnrs 
+JOIN (select movie_id, count(*) as genreCnt from  genres_movies group by movie_id) as mvs  
+ON gnrs.movie_id = mvs.movie_id limit 10;
+
+
+movie_id              genre_id        genrecnt
+1 Toy Story (1995)    5 Comedy        3
+1 Toy Story (1995)    4 Children's    3
+1 Toy Story (1995)    3 Animation     3
+--------------------------------------------------------
+
+We are interested in (genre_id , genrecnt) combinations which tell us , for example ,
+Genre Comedy is apprears with 2 other genres for movie Toy Story
+
+Similarly we see for the movie , Get Shorty (1995) , Comedy appears with 2 other genres.
+
+Step 3: Find how messy a genre (confusion) is
+
+select gnrCntTable.genre_id, sum(gnrCntTable.genreCnt) as sumGnr, avg(gnrCntTable.genreCnt) as avgGnr 
+from (SELECT gnrs.movie_id, gnrs.genre_id, mvs.genreCnt from genres_movies gnrs JOIN (select movie_id, count(*) as genreCnt from  genres_movies group by movie_id) as mvs ON gnrs.movie_id = mvs.movie_id) as gnrCntTable 
+group by gnrCntTable.genre_id order by avgGnr asc  limit 500 ;
+
+genre_id .    sumgnr  avggnr
+Documentary . 55.0	   1.1
+
+The Genre Documentary seems to be the cleanest one and Fantasy is the most messed up Genre
