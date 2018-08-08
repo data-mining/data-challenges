@@ -27,3 +27,69 @@ public String[] allSwap(String[] strings) {
 
 //////////////////////////
 
+Map-2 > firstSwap 
+prev  |  next  |  chance
+We'll say that 2 strings "match" if they are non-empty and their first chars are the same. Loop over and then return the given array of non-empty strings as follows: if a string matches an earlier string in the array, swap the 2 strings in the array. A particular first char can only cause 1 swap, so once a char has caused a swap, its later swaps are disabled. Using a map, this can be solved making just one pass over the array. More difficult than it looks.
+
+
+firstSwap(["ab", "ac"]) → ["ac", "ab"]
+firstSwap(["ax", "bx", "cx", "cy", "by", "ay", "aaa", "azz"]) → ["ay", "by", "cy", "cx", "bx", "ax", "aaa", "azz"]
+firstSwap(["ax", "bx", "ay", "by", "ai", "aj", "bx", "by"]) → ["ay", "by", "ax", "bx", "ai", "aj", "bx", "by"]
+
+//////////////////////////
+
+public String[] firstSwap(String[] strings) {
+  Map<Character,Integer> map = new HashMap<Character,Integer>();
+  int n = strings.length;
+  for(int i=0; i<n; i++) {
+    char c = strings[i].charAt(0);
+    if (!map.containsKey(c)) {
+      map.put(c,i);
+    }else {
+      int j = map.get(c);
+      if(j >= 0) {
+        String temp = strings[i];
+        strings[i] = strings[j];
+        strings[j] = temp;
+        // add invalid marker 
+        map.put(c,-1);
+      }
+    }
+  }
+  return strings;
+}
+
+////////////////////
+Map-2 > wordAppend 
+prev  |  next  |  chance
+Loop over the given array of strings to build a result string like this: when a string appears the 2nd, 4th, 6th, etc. time in the array, append the string to the result. Return the empty string if no string appears a 2nd time.
+
+
+wordAppend(["a", "b", "a"]) → "a"
+wordAppend(["a", "b", "a", "c", "a", "d", "a"]) → "aa"
+wordAppend(["a", "", "a"]) → "a"
+
+
+public String wordAppend(String[] strings) {
+  Map<String,Integer> map = new HashMap<String,Integer>();
+  String output = "";
+  for(String s : strings) {
+    if(!map.containsKey(s)) {
+      map.put(s,1);
+    }else{
+      int cnt = map.get(s);
+      cnt=cnt+1;
+      map.put(s,cnt);
+
+      if(cnt % 2 == 0) {
+        output = output + s;
+      }
+
+    }
+  }
+  return output;
+  
+}
+
+
+///////////////////
